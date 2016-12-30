@@ -1,0 +1,151 @@
+> library(data.table)
+data.table 1.9.6  For help type ?data.table or https://github.com/Rdatatable/data.table/wiki
+The fastest way to learn (by data.table authors): https://www.datacamp.com/courses/data-analysis-the-data-table-way
+> setwd("~//Desktop/GB")
+> require("plyr")
+Loading required package: plyr
+> require("dplyr")
+Loading required package: dplyr
+-------------------------------------------------------------------------------------
+data.table + dplyr code now lives in dtplyr.
+Please library(dtplyr)!
+-------------------------------------------------------------------------------------
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:plyr’:
+
+    arrange, count, desc, failwith, id, mutate, rename, summarise, summarize
+
+The following objects are masked from ‘package:data.table’:
+
+    between, last
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> require("reshape2")
+Loading required package: reshape2
+
+Attaching package: ‘reshape2’
+
+The following objects are masked from ‘package:data.table’:
+
+    dcast, melt
+
+> require("data.table")
+> client <- fread("cliente_tabla.csv", header = T, stringsAsFactors = F)
+> summary(client)
+   Cliente_ID        NombreCliente     
+ Min.   :0.000e+00   Length:935362     
+ 1st Qu.:6.620e+05   Class :character  
+ Median :1.902e+06   Mode  :character  
+ Mean   :2.357e+06                     
+ 3rd Qu.:4.362e+06                     
+ Max.   :2.015e+09                     
+> prod <- fread("producto_tabla.csv", header = T, stringsAsFactors = F)
+> head(prod, 20)
+    Producto_ID                           NombreProducto
+ 1:           0                        NO IDENTIFICADO 0
+ 2:           9                Capuccino Moka 750g NES 9
+ 3:          41   Bimbollos Ext sAjonjoli 6p 480g BIM 41
+ 4:          53           Burritos Sincro 170g CU LON 53
+ 5:          72      Div Tira Mini Doradita 4p 45g TR 72
+ 6:          73        Pan Multigrano Linaza 540g BIM 73
+ 7:          98             Tostado Integral 180g WON 98
+ 8:          99                   Pan Blanco 567g WON 99
+ 9:         100   Super Pan Bco Ajonjoli 680g SP WON 100
+10:         106       Wonder 100pct mediano 475g WON 106
+11:         107        Wonder 100pct gde 680g SP WON 107
+12:         108      Baguette Precocida Cong 280g DH 108
+13:         109             Pan Multicereal 475g WON 109
+14:         112            Tostado Integral 180g WON 112
+15:         122 Biscotel Receta Original 410g CU SUA 122
+16:         123         Super Bollos 5in 8p 540g WON 123
+17:         125                   Bollos 8p 450g WON 125
+18:         131           Bollos BK 4in 36p 1635g SL 131
+19:         132           Bollos BK 5in 30p 1730g SL 132
+20:         134       Bollos BK 4in 30p 1635g TIR SL 134
+> townst<-fread("town_state.csv", header = T, stringsAsFactors = F)
+> townst
+     Agencia_ID                     Town                 State
+  1:       1110       2008 AG. LAGO FILT          MÉXICO, D.F.
+  2:       1111    2002 AG. AZCAPOTZALCO          MÉXICO, D.F.
+  3:       1112      2004 AG. CUAUTITLAN      ESTADO DE MÉXICO
+  4:       1113       2008 AG. LAGO FILT          MÉXICO, D.F.
+  5:       1114     2029 AG.IZTAPALAPA 2          MÉXICO, D.F.
+ ---                                                          
+786:      25729  2572 TIJUANA EL FLORIDO BAJA CALIFORNIA NORTE
+787:      25739 2573 TIJUANA GATO BRONCO BAJA CALIFORNIA NORTE
+788:      25749    2574 TIJUANA PACIFICO BAJA CALIFORNIA NORTE
+789:      25759    2575 TIJUANA ROSARITO BAJA CALIFORNIA NORTE
+790:      25769      2576 GUERRERO NEGRO   BAJA CALIFORNIA SUR
+> # Train data
+> h <- fread("train.csv", header=T, stringsAsFactors=F)
+Read 74180464 rows and 11 (of 11) columns from 2.980 GB file in 00:00:50
+> names(h)
+ [1] "Semana"            "Agencia_ID"        "Canal_ID"          "Ruta_SAK"         
+ [5] "Cliente_ID"        "Producto_ID"       "Venta_uni_hoy"     "Venta_hoy"        
+ [9] "Dev_uni_proxima"   "Dev_proxima"       "Demanda_uni_equil"
+> names(h) <- c("week", "agencyid", "channelid", "routeid", "cid", "pid", "weekunits", "weeksales",
++ "returnunits", "returnsales", "demand")
+> # Test data
+> t <- fread("test.csv", header=T, stringsAsFactors=F)
+Read 6999251 rows and 7 (of 7) columns from 0.234 GB file in 00:00:03
+> names(t)
+[1] "id"          "Semana"      "Agencia_ID"  "Canal_ID"    "Ruta_SAK"    "Cliente_ID" 
+[7] "Producto_ID"
+> names(t) <- c("id", "week", "agencyid", "channelid", "routeid", "cid", "pid")
+> #== making sbset for train
+> ## select = c('cid', 'pid', 'agencyid', 'routeid', 'demand')
+> h1 <- subset(h, select = c('cid', 'pid', 'agencyid', 'routeid', 'demand'))
+> ## making subset for test
+> ##  select = c('id', 'cid', 'pid', 'agencyid', 'routeid')
+> t1 <- subset(t, select = c('id', 'cid', 'pid', 'agencyid', 'routeid'))
+> ## -----Computing means-----
+> #transform target variable to log(1 + demand) -  as we're
+> #trying to minimize rmsle and the mean minimizes rmse:
+> h1$log_demand = log1p(h1$demand)
+> mean_total <- mean(h1$log_demand) # overall mean
+> mean-total
+Error: object 'total' not found
+> #mean by product
+> mean_P <-  h1[, .(MP = mean(log_demand)), by = .(pid)]
+> #mean by product and routeid
+> mean_PR <- h1[, .(MPR = mean(log_demand)), by = .(pid, routeid)]
+> #mean by product, client, agencyia
+> mean_PCA <- h1[, .(MPCA = mean(log_demand)), by = .(pid, cid, agencyid)]
+> ## Merging means with test set
+> submit <- merge(t1, mean_PCA, all.x = TRUE, by = c('pid', 'cid', 'agencyid'))
+> submit <- merge(submit, mean_PR, all.x = TRUE, by = c("pid", "routeid"))
+> submit <- merge(submit, mean_P, all.x = TRUE, by = "pid")
+> submit
+           pid routeid     cid agencyid      id     MPCA      MPR       MP
+      1:    41    3301 2284385     2278 1678163 4.875985 4.890607 4.428392
+      2:    41    3306  681747     2281 6236398 7.317818 5.528314 4.428392
+      3:    41    3309 2482890     2281 3458287 5.927837 5.186857 4.428392
+      4:    53    1008 2502084     1452  749471 5.224259 6.998414 4.082771
+      5:    53    6652 2386615     1374 5423268 1.098612 1.279712 4.082771
+     ---                                                                  
+6999247: 49994    6506  153175    23669 4507722       NA 1.842894 1.257660
+6999248: 49994    6506  246250    23669 2163310 1.098612 1.842894 1.257660
+6999249: 49996    1510 9710814     1669 3177961 2.372466 2.372466 2.174669
+6999250: 49996    1529 1519414     2249 5935173 3.575449 3.575449 2.174669
+6999251: 49997    1505  136301     1592  154877 2.394995 2.394995 2.394995
+> # Now create Predictions column;
+> submit$Pred <- expm1(submit$MPCA)*0.725+expm1(submit$MPR)*0.195+0.086
+> submit[is.na(Pred)]$Pred <- expm1(submit[is.na(Pred)]$MPR)*0.748+0.168
+> submit[is.na(Pred)]$Pred <- expm1(submit[is.na(Pred)]$MP)*0.761+1.485
+> submit[is.na(Pred)]$Pred <- expm1(mean_total)*1.0705
+> submit$Pred <- round(submit$Pred,3)
+> ##Write out submission file
+> # now relabel columns ready for creatig submission
+> setnames(submit,"Pred","Demanda_uni_equil")
+> # Any results you write to the current directory are saved as output.
+> write.csv(submit[,.(id,Demanda_uni_equil)],"submit_means_LB_gb8.csv", row.names = FALSE)
+> ## end it was my submission #8
